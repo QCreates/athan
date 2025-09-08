@@ -1,0 +1,41 @@
+\<!DOCTYPE html>
+<html>
+  <head>
+    <title>Athan Times</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  </head>
+  <body>
+    <h2><span id="clock"></span></h2>
+    <ul>
+      {% for prayer, time in athan_times.items() %}
+        <li>{{ prayer }}: {{ time }}</li>
+      {% endfor %}
+    </ul>
+
+    <script>
+      function updateClock() {
+        let now = new Date();
+        let h = now.getHours();
+        let m = now.getMinutes();
+        let s = now.getSeconds();
+        let ampm = h >= 12 ? "PM" : "AM";
+        h = h % 12; h = h ? h : 12;
+        m = m < 10 ? "0" + m : m;
+        s = s < 10 ? "0" + s : s;
+        document.getElementById("clock").textContent =
+            h + ":" + m + ":" + s + " " + ampm;
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      // Listen for reload signals
+      const socket = io();
+      socket.on("reload", () => {
+        console.log("Reload signal received, refreshing page...");
+        location.reload();
+      });
+    </script>
+  </body>
+</html>
+

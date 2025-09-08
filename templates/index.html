@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Athan Times</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="placeholder"></div>
+      <div class="athan">
+        <ul>
+          {% for prayer, time in prayer_times.items() %}
+            <li>{{ prayer }}<br><hr class="rounded">{{ time }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="clock">
+        <h1><span id="clock"></span><span id="ampm"></span></h1>
+        <h2>{{ hijri_date }} | {{ gregorian_date }}</h2>
+        <div class="next-prayer">
+          <h2 class="prayer-type">{{ next_prayer }} Athan In</h2>
+          <h2 class="time-until" id="time-until">--:--:--</h2>
+        </div>
+        <img src="{{ url_for('static', filename=prayer_image) }}" alt="Calligraphy">
+      </div>
+    </div>
+
+    <script>
+      function updateClock() {
+        let now = new Date();
+        let h = now.getHours();
+        let m = now.getMinutes();
+        let s = now.getSeconds();
+        let ampm = h >= 12 ? "PM" : "AM";
+        h = h % 12; h = h ? h : 12;
+        m = m < 10 ? "0" + m : m;
+        s = s < 10 ? "0" + s : s;
+        document.getElementById("clock").textContent = h + ":" + m;
+        document.getElementById("ampm").textContent = ":" + s + " " + ampm;
+      }
+
+
+
+  function updateCountdown() {
+    const nextPrayerTime = "{{ next_time }}";
+    if (!nextPrayerTime) return;
+
+    const target = new Date(nextPrayerTime);
+    const now = new Date();
+    const diff = target - now;
+
+    if (diff > 0) {
+      let hours = Math.floor(diff / (1000 * 60 * 60));
+      let minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      let seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      document.getElementById("time-until").textContent =
+        `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    } else {
+      document.getElementById("time-until").textContent = "Now";
+    }
+  }
+
+      setInterval(updateClock, 1000);
+  setInterval(updateCountdown, 1000);
+      updateClock();
+  updateCountdown();
+
+      const socket = io();
+      socket.on("reload", () => {
+        console.log("Reload signal received, refreshing page...");
+        location.reload();
+      });
+    </script>
+<script>
+function updateImage() {
+  let img = document.querySelector("img");
+  let src = img.src.split("?")[0];  // remove old cache buster
+  img.src = src + "?t=" + new Date().getTime(); // force reload
+}
+setInterval(updateImage, 60000); // refresh every 60s
+</script>
+  </body>
+</html>
+
