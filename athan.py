@@ -108,35 +108,42 @@ def play_quran_segment():
         print(f"[WARN] Missing Quran file: {DAILY_QURAN}")
         return
 
+    
     duration = _get_quran_duration_sec()
     if not duration or duration <= 0:
         print("[ERROR] Unknown Quran duration")
         return
 
+    # Load previous offset
     offset = load_offset() % duration
-    next_offset = (offset + PRECLIP_SECONDS) % duration
-    save_offset(next_offset)
+    end_time = time.time() + PRECLIP_SECONDS  # total 5 min play window
 
-    # Start playback at offset (seconds). Note: for some codecs, start accuracy can vary slightly.
-    try:
-        pygame.mixer.music.load(DAILY_QURAN)
-        pygame.mixer.music.play(start=offset)
-        send_notification("Athan Pi", f"Now playing 5-min Quran clip (offset {int(offset)}s)")
-        print(f"[INFO] Quran Preclip: playing {PRECLIP_SECONDS}s from {int(offset)}s → next {int(next_offset)}s")
-    except Exception as e:
-        print(f"[ERROR] pygame could not start Quran preclip: {e}")
-        return
+    def _play_loop():
+        nonlocal offset
+        while time.time() < end_time:
+            pygame.mixer.music.load(DAILY_QURAN)
+            pygame.mixer.music.play(start=offset)
 
-    # Stop after PRECLIP_SECONDS (in a helper thread so we don't block the loop)
-    def _stop_after():
-        time.sleep(PRECLIP_SECONDS)
-        try:
-            # Only stop if it's still the Quran clip playing
+            remaining_clip_time = duration - offset
+            remaining_total_time = end_time - time.time()
+
+            # If total remaining time is less than this clip, just play part of it
+            sleep_time = min(remaining_clip_time, remaining_total_time)
+            time.sleep(sleep_time)
+
             pygame.mixer.music.stop()
-        except Exception:
-            pass
 
-    threading.Thread(target=_stop_after, daemon=True).start()
+            # Next time, start from 0 since we've wrapped around
+            offset = 0
+
+        # Save the next offset for the next session
+        save_offset((offset + remaining_total_time) % duration)
+        print("[INFO] Quran preclip finished playing for full 5 minutes.")
+
+    # Run the loop in a thread so it doesn't block the main process
+    threading.Thread(target=_play_loop, daemon=True).start()
+    send_notification("Athan Pi", "Now playing looping Quran preclip for 5 minutes")
+    print(f"[INFO] Quran Preclip started at offset {int(offset)}s, looping until 5 minutes are up.")
 
 # ---------- existing sound handling ----------
 def sound_for(prayer: str) -> str:
