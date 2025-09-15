@@ -231,7 +231,7 @@ def build_today_schedule():
     # Isha - 20 minutes
     if "Isha" in times and os.path.exists(SOUND_ISHA_PRE):
         isha_dt = parse_today_dt(times["Isha"])
-        pre_dt = isha_dt - timedelta(minutes=20)
+        pre_dt = isha_dt - timedelta(seconds=19.45*60)
         schedule.append(("Isha-Pre", pre_dt, "play", SOUND_ISHA_PRE))
 
     # Morning Athkar at 6:30 AM
