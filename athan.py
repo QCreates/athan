@@ -8,12 +8,15 @@ import time
 import json
 import threading
 from datetime import datetime, date, time as dtime, timedelta
+from flask_socketio import SocketIO
 
 import requests
 from bs4 import BeautifulSoup
 import requests
 
 NTFY_TOPIC = "my_athan"  # same name you used in the app
+
+socketio = SocketIO(message_queue='redis://localhost:6379')
 
 def send_notification(title, message):
     try:
@@ -338,6 +341,7 @@ def main():
                     play_sound(payload)
                 elif kind == "quran":
                     play_quran_segment()
+                socketio.emit("refresh", {"message": "Prayer time reached"}, namespace="/") # Refresh web page
                 fired.add(key)
 
         if not refreshed_after_2am and now.time() >= dtime(2, 0) and now.date() == last_refresh_date:

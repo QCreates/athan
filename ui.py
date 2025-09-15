@@ -17,8 +17,12 @@ STATIC_DIR = "static"
 
 # Flask setup
 app = Flask(__name__, static_folder=STATIC_DIR, template_folder="templates")
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 # ==================================================
+
+@socketio.on("refresh")
+def handle_refresh_event(data):
+    print(f"[SOCKET] Refresh event received: {data}")
 
 def fetch_epic_adhaan_times():
     """Scrape Epic Masjid prayer times from the website"""

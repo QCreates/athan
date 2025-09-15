@@ -67,8 +67,8 @@
   updateCountdown();
 
       const socket = io();
-      socket.on("reload", () => {
-        console.log("Reload signal received, refreshing page...");
+      socket.on("refresh", () => {
+        console.log("Refresh signal received, refreshing page...");
         location.reload();
       });
     </script>
