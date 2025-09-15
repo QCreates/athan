@@ -48,13 +48,13 @@ EPIC_URL = "https://epicmasjid.org/"
 SOUND_GENERAL   = r"./audio/athanfull.mp3"
 SOUND_FAJR      = r"./audio/athanfullfajr.mp3"
 SOUND_SHORT     = r"./audio/athanshort.mp3"
-SOUND_ISHA_PRE  = r"./audio/isha_athan.mp3"
+SOUND_ISHA_PRE  = r"./audio/athkar_masaa.mp3"
 SOUND_MORNING   = r"./audio/morning_athkar.mp3"
 SOUND_KAHF      = r"./audio/alkahf.mp3"
 
-# Daily Quran pre-clip (5 minutes before each applicable prayer)
+# Daily Quran pre-clip (10 minutes before each applicable prayer)
 DAILY_QURAN     = r"./audio/daily_quran.mp3"
-PRECLIP_SECONDS = 300
+PRECLIP_SECONDS = 600
 STATE_FILE      = r"./quran_preclip_state.json"
 
 POLL_SEC = 5
@@ -101,8 +101,8 @@ def reset_quran_offset():
 def play_quran_segment():
     """
     Plays exactly PRECLIP_SECONDS of daily_quran.mp3 starting at saved offset.
-    Uses pygame.mixer.music with start position and stops after 300s.
-    Saves the next offset immediately so progress persists even if interrupted.
+    If the clip ends before the 10 minutes are over, it loops seamlessly.
+    Saves the next offset so playback resumes from where it last stopped.
     """
     if not HAVE_PYGAME:
         print(f"[ERROR] pygame not available: {_PG_ERR if '_PG_ERR' in globals() else ''}")
@@ -111,42 +111,45 @@ def play_quran_segment():
         print(f"[WARN] Missing Quran file: {DAILY_QURAN}")
         return
 
-    
+    # Get total clip duration
     duration = _get_quran_duration_sec()
     if not duration or duration <= 0:
         print("[ERROR] Unknown Quran duration")
         return
 
-    # Load previous offset
+    # Load the last saved offset
     offset = load_offset() % duration
-    end_time = time.time() + PRECLIP_SECONDS  # total 5 min play window
+    end_time = time.time() + PRECLIP_SECONDS  # Total 10-minute playback window
 
     def _play_loop():
         nonlocal offset
+        print(f"[INFO] Quran Preclip started at offset {int(offset)}s, looping until {PRECLIP_SECONDS//60} minutes are up")
+
         while time.time() < end_time:
             pygame.mixer.music.load(DAILY_QURAN)
             pygame.mixer.music.play(start=offset)
 
+            # Calculate how long this specific play will run
             remaining_clip_time = duration - offset
             remaining_total_time = end_time - time.time()
 
-            # If total remaining time is less than this clip, just play part of it
-            sleep_time = min(remaining_clip_time, remaining_total_time)
-            time.sleep(sleep_time)
+            # Only play for the smaller of the two durations
+            play_time = min(remaining_clip_time, remaining_total_time)
+            time.sleep(play_time)
 
             pygame.mixer.music.stop()
 
-            # Next time, start from 0 since we've wrapped around
+            # If we finished the clip but still have time left, restart from 0
             offset = 0
 
-        # Save the next offset for the next session
-        save_offset((offset + remaining_total_time) % duration)
-        print("[INFO] Quran preclip finished playing for full 5 minutes.")
+        # Save the exact point where playback ended for next session
+        next_offset = (offset + (time.time() - (end_time - PRECLIP_SECONDS))) % duration
+        save_offset(next_offset)
+        print(f"[INFO] Quran preclip finished. Next session will start from {int(next_offset)}s.")
 
-    # Run the loop in a thread so it doesn't block the main process
+    # Start playback in a background thread
     threading.Thread(target=_play_loop, daemon=True).start()
-    send_notification("Athan Pi", "Now playing looping Quran preclip for 5 minutes")
-    print(f"[INFO] Quran Preclip started at offset {int(offset)}s, looping until 5 minutes are up.")
+    send_notification("Athan Pi", f"Now playing looping Quran preclip for {PRECLIP_SECONDS//60} minutes")
 
 # ---------- existing sound handling ----------
 def sound_for(prayer: str) -> str:
