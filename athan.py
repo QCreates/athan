@@ -254,7 +254,7 @@ def should_refresh(now: datetime, last_refresh_date: date, refreshed_after_2am: 
 # ---------- key watcher ----------
 def key_watcher():
     print("[INFO] Controls: Enter = short test, Q = Quran preclip, R = reset Quran offset, Esc = stop")
-    while True:
+    """while True:
         try:
             line = input().strip().lower()
             if line == "":
@@ -269,7 +269,7 @@ def key_watcher():
                 stop_all_sounds()
         except Exception as e:
             print(f"[WARN] Input watcher error: {e}")
-            time.sleep(1)
+            time.sleep(1)"""
 
 
 # ---------- main ----------
