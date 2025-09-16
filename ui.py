@@ -4,7 +4,7 @@
 import os
 import json
 from datetime import datetime, timedelta, date
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from flask_socketio import SocketIO
 import requests
 import re
@@ -19,6 +19,12 @@ STATIC_DIR = "static"
 app = Flask(__name__, static_folder=STATIC_DIR, template_folder="templates")
 socketio = SocketIO(app, cors_allowed_origins="*")
 # ==================================================
+
+@app.route("/trigger-refresh", methods=["POST"])
+def trigger_refresh():
+    print("[INFO] Received UI refresh trigger.")
+    socketio.emit("refresh", {"message": "Refresh triggered"})
+    return "OK", 200
 
 @socketio.on("refresh")
 def handle_refresh_event(data):

@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import os
 import re
 import sys
@@ -8,15 +5,13 @@ import time
 import json
 import threading
 from datetime import datetime, date, time as dtime, timedelta
-from flask_socketio import SocketIO
 
 import requests
 from bs4 import BeautifulSoup
 import requests
 
 NTFY_TOPIC = "my_athan"  # same name you used in the app
-
-socketio = SocketIO(message_queue='redis://localhost:6379')
+UI_REFRESH_URL = "http://127.0.0.1:8000/trigger-refresh"
 
 def send_notification(title, message):
     try:
@@ -25,6 +20,13 @@ def send_notification(title, message):
                       headers={"Title": title})
     except Exception as e:
         print(f"[WARN] Failed to send notification: {e}")
+
+def trigger_ui_refresh():
+    try:
+        requests.post(UI_REFRESH_URL, timeout=5)
+        print("[INFO] UI refresh triggered successfully.")
+    except Exception as e:
+        print(f"[WARN] Failed to trigger UI refresh: {e}")
 
 # --- Quran pre-clip uses pygame + mutagen (no compiler needed) ---
 try:
@@ -48,13 +50,13 @@ EPIC_URL = "https://epicmasjid.org/"
 SOUND_GENERAL   = r"./audio/athanfull.mp3"
 SOUND_FAJR      = r"./audio/athanfullfajr.mp3"
 SOUND_SHORT     = r"./audio/athanshort.mp3"
-SOUND_ISHA_PRE  = r"./audio/athkar_masaa.mp3"
+SOUND_ATHKAR_MASAA  = r"./audio/athkar_masaa.mp3"
 SOUND_MORNING   = r"./audio/morning_athkar.mp3"
 SOUND_KAHF      = r"./audio/alkahf.mp3"
 
-# Daily Quran pre-clip (10 minutes before each applicable prayer)
+# Daily Quran pre-clip (5 minutes before each applicable prayer)
 DAILY_QURAN     = r"./audio/daily_quran.mp3"
-PRECLIP_SECONDS = 600
+PRECLIP_SECONDS = 584
 STATE_FILE      = r"./quran_preclip_state.json"
 
 POLL_SEC = 5
@@ -101,8 +103,8 @@ def reset_quran_offset():
 def play_quran_segment():
     """
     Plays exactly PRECLIP_SECONDS of daily_quran.mp3 starting at saved offset.
-    If the clip ends before the 10 minutes are over, it loops seamlessly.
-    Saves the next offset so playback resumes from where it last stopped.
+    Uses pygame.mixer.music with start position and stops after 584.
+    Saves the next offset immediately so progress persists even if interrupted.
     """
     if not HAVE_PYGAME:
         print(f"[ERROR] pygame not available: {_PG_ERR if '_PG_ERR' in globals() else ''}")
@@ -111,45 +113,35 @@ def play_quran_segment():
         print(f"[WARN] Missing Quran file: {DAILY_QURAN}")
         return
 
-    # Get total clip duration
     duration = _get_quran_duration_sec()
     if not duration or duration <= 0:
         print("[ERROR] Unknown Quran duration")
         return
 
-    # Load the last saved offset
     offset = load_offset() % duration
-    end_time = time.time() + PRECLIP_SECONDS  # Total 10-minute playback window
+    next_offset = (offset + PRECLIP_SECONDS) % duration
+    save_offset(next_offset)
 
-    def _play_loop():
-        nonlocal offset
-        print(f"[INFO] Quran Preclip started at offset {int(offset)}s, looping until {PRECLIP_SECONDS//60} minutes are up")
+    # Start playback at offset (seconds). Note: for some codecs, start accuracy can vary slightly.
+    try:
+        pygame.mixer.music.load(DAILY_QURAN)
+        pygame.mixer.music.play(start=offset)
+        send_notification("Athan Pi", f"Now playing 10ish-min Quran clip (offset {int(offset)}s)")
+        print(f"[INFO] Quran Preclip: playing {PRECLIP_SECONDS}s from {int(offset)}s → next {int(next_offset)}s")
+    except Exception as e:
+        print(f"[ERROR] pygame could not start Quran preclip: {e}")
+        return
 
-        while time.time() < end_time:
-            pygame.mixer.music.load(DAILY_QURAN)
-            pygame.mixer.music.play(start=offset)
-
-            # Calculate how long this specific play will run
-            remaining_clip_time = duration - offset
-            remaining_total_time = end_time - time.time()
-
-            # Only play for the smaller of the two durations
-            play_time = min(remaining_clip_time, remaining_total_time)
-            time.sleep(play_time)
-
+    # Stop after PRECLIP_SECONDS (in a helper thread so we don't block the loop)
+    def _stop_after():
+        time.sleep(PRECLIP_SECONDS)
+        try:
+            # Only stop if it's still the Quran clip playing
             pygame.mixer.music.stop()
+        except Exception:
+            pass
 
-            # If we finished the clip but still have time left, restart from 0
-            offset = 0
-
-        # Save the exact point where playback ended for next session
-        next_offset = (offset + (time.time() - (end_time - PRECLIP_SECONDS))) % duration
-        save_offset(next_offset)
-        print(f"[INFO] Quran preclip finished. Next session will start from {int(next_offset)}s.")
-
-    # Start playback in a background thread
-    threading.Thread(target=_play_loop, daemon=True).start()
-    send_notification("Athan Pi", f"Now playing looping Quran preclip for {PRECLIP_SECONDS//60} minutes")
+    threading.Thread(target=_stop_after, daemon=True).start()
 
 # ---------- existing sound handling ----------
 def sound_for(prayer: str) -> str:
@@ -228,14 +220,14 @@ def build_today_schedule():
 
             # Quran preclip 5 min before each (exclude Isha, and Asr on Fridays)
             if p != "Isha" and not (p == "Asr" and date.today().weekday() == 4):
-                pre_dt = dtm - timedelta(minutes=5)
+                pre_dt = dtm - timedelta(seconds=PRECLIP_SECONDS)
                 schedule.append((f"{p}-QuranPre", pre_dt, "quran", None))
 
     # Isha - 20 minutes
-    if "Isha" in times and os.path.exists(SOUND_ISHA_PRE):
+    if "Isha" in times and os.path.exists(SOUND_ATHKAR_MASAA):
         isha_dt = parse_today_dt(times["Isha"])
-        pre_dt = isha_dt - timedelta(seconds=19.45*60)
-        schedule.append(("Isha-Pre", pre_dt, "play", SOUND_ISHA_PRE))
+        pre_dt = isha_dt - timedelta(seconds=19.43*60)
+        schedule.append(("Isha-Pre", pre_dt, "play", SOUND_ATHKAR_MASAA))
 
     # Morning Athkar at 6:30 AM
     morning_dt = datetime.combine(date.today(), dtime(6, 30))
@@ -283,6 +275,7 @@ def key_watcher():
 # ---------- main ----------
 def main():
     print("[INFO] Athan daemon starting…")
+    trigger_ui_refresh()
 
     # Initialize pygame mixer if available (for Quran pre-clip)
     if HAVE_PYGAME:
@@ -291,11 +284,9 @@ def main():
         except Exception as e:
             print(f"[WARN] pygame mixer init failed: {e}")
 
-    for p in (SOUND_GENERAL, SOUND_FAJR, SOUND_SHORT, SOUND_ISHA_PRE, SOUND_MORNING, SOUND_KAHF, DAILY_QURAN):
+    for p in (SOUND_GENERAL, SOUND_FAJR, SOUND_SHORT, SOUND_ATHKAR_MASAA, SOUND_MORNING, SOUND_KAHF, DAILY_QURAN):
         if not os.path.exists(p):
             print(f"[WARN] Path not found: {p}")
-
-    threading.Thread(target=key_watcher, daemon=True).start()
 
     schedule = []
     fired = set()
@@ -328,6 +319,7 @@ def main():
                 print("[INFO] Refreshed events:")
                 for label, t, _, _ in schedule:
                     print(f"  - {label}: {t.strftime('%I:%M %p')}")
+                trigger_ui_refresh()
             except Exception as e:
                 print(f"[WARN] Refresh failed: {e}. Will retry in 5 minutes.")
                 time.sleep(300)
@@ -344,7 +336,8 @@ def main():
                     play_sound(payload)
                 elif kind == "quran":
                     play_quran_segment()
-                socketio.emit("refresh", {"message": "Prayer time reached"}, namespace="/") # Refresh web page
+                
+                trigger_ui_refresh()
                 fired.add(key)
 
         if not refreshed_after_2am and now.time() >= dtime(2, 0) and now.date() == last_refresh_date:
