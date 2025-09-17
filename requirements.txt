@@ -1,0 +1,6 @@
+Flask
+flask-socketio
+requests
+beautifulsoup4
+pygame
+mutagen
