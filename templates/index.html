@@ -2,27 +2,44 @@
 <html>
   <head>
     <title>Athan Times</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   </head>
   <body>
     <div class="container">
-      <div class="placeholder"></div>
-      <div class="athan">
-        <ul>
-          {% for prayer, time in prayer_times.items() %}
-            <li>{{ prayer }}<br><hr class="rounded">{{ time }}</li>
-          {% endfor %}
-        </ul>
-      </div>
       <div class="clock">
         <h1><span id="clock"></span><span id="ampm"></span></h1>
         <h2>{{ hijri_date }} | {{ gregorian_date }}</h2>
         <div class="next-prayer">
-          <h2 class="prayer-type">{{ next_prayer }} Athan In</h2>
+          {% set prayer_map = {
+            "Fajr": "الفجر",
+            "Dhuhr": "الظهر",
+            "Asr": "العصر",
+            "Maghrib": "المغرب",
+            "Isha": "العشاء"
+          } %}
           <h2 class="time-until" id="time-until">--:--:--</h2>
+          <h2 class="prayer-type arabic-prayer">حتى {{ prayer_map[next_prayer] }} </h2>
         </div>
         <img src="{{ url_for('static', filename=prayer_image) }}" alt="Calligraphy">
+      </div>
+      <div class="athan">
+        <ul>
+          {% set prayer_map = {
+            "Fajr": "الفجر",
+            "Dhuhr": "الظهر",
+            "Asr": "العصر",
+            "Maghrib": "المغرب",
+            "Isha": "العشاء"
+          } %}
+          
+          {% for prayer, time in prayer_times.items() %}
+            <li {% if prayer == current_prayer %}id="current"{% endif %}>
+              {{ prayer_map[prayer] }}<br><hr class="rounded">{{ time }}
+            </li>
+          {% endfor %}
+        </ul>
       </div>
     </div>
 

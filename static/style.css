@@ -9,18 +9,25 @@
   color: black;
 }
 
+.arabic-prayer, .time-until {
+  font-family: 'Cairo', sans-serif;
+  font-weight: 100;
+  padding: 0;
+}
 
 :root {
     --bg-img: url("https://qcreates.github.io/Photos/Landscape/Aqsa_043.JPG");
 }
 
 body {
-    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Cairo', sans-serif;
     background-color: #366943;
     color: #333;
     text-align: center;
     font-weight: 100;
     overflow-y: hidden;
+    margin-left: 5vw;
+    margin-right: 2vw;
   
     background: var(--bg-img) no-repeat center center fixed;
     background-size: cover;
@@ -59,7 +66,8 @@ hr {
 
     height: 98vh;
 
-    padding: 0 1vw;
+    padding: 0;
+    margin: 0;
 
     border-radius: 10px;
 
@@ -70,26 +78,37 @@ hr {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: start;
+    align-items: end;
 }
 ul {
-  font-weight: 100;
-  font-size: 3.5vh;
+    font-weight: 100;
+    font-size: 3.5vh;
+    height: 100%;
+    padding-top: 4%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 li {
-    width: 250px;
+    width: 300px;
+    font-size: 4.5vh;
     height: fit-content;
-    margin: 30px !important;
-    padding: 15px;
+    padding: 0;
     border-radius: 30px;
 
     box-shadow: #555 0px 0px 12px;
-
     background-color: #efefefe0;
     color: #444477;
 }
+#current {
+    box-shadow: #001 0px 0px 10px !important;
+    background-color: #bdbddcf0 !important;
+    color: #282878 !important;
+}
  
 h1 {
+font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   font-weight: 100;
   font-size: 21vh;
   padding: 0;
@@ -105,9 +124,10 @@ h1 {
 
 .clock {
     width: 65%;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    align-items: end;
+    align-items: start;
 }
 
 .next-prayer {
@@ -123,30 +143,25 @@ h1 {
     background-color: #444477;
     color: #ddd;
 
-    border-radius: 10px 0px 0px 10px;
+    border-radius: 0px 10px 10px 0px;
+    min-width: 300px;
 }
 
 .time-until {
     background-color: #ddd;
     color: #444477;
 
-    border-radius: 0px 10px 10px 0px;
+    border-radius: 10px 0px 0px 10px;
+    min-width: 300px;
 }
 
 img {
-    padding-top: 5vh;
+    padding-top: 1vh;
     height: 50vh;
 }
 
 ul {
   list-style: none;
-  padding: 0;
-  font-weight: 100;
 }
 
-li {
-  font-size: 1.2em;
-  margin: 5px 0;
-  font-weight: 100;
-}
 
