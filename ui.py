@@ -4,6 +4,7 @@
 import os
 import json
 from datetime import datetime, timedelta, date
+from hijri_converter import Gregorian
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO
 import requests
@@ -90,7 +91,9 @@ def get_current_and_next(schedule):
 @app.route("/")
 def index():
     schedule = build_schedule()
-    hijri_date = "15 Rabiʻ I"   # placeholder, replace with real calc if needed
+    today = date.today()
+    hijri = Gregorian(today.year, today.month, today.day).to_hijri()
+    hijri_date = f"{hijri.day} {hijri.month_name()} {hijri.year} AH"
     gregorian_date = datetime.now().strftime("%A, %B %d")
 
     current_prayer, next_prayer, next_time = get_current_and_next(schedule)
