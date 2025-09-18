@@ -220,7 +220,7 @@ def build_today_schedule():
 
             # Quran preclip 5 min before each (exclude Isha, and Asr on Fridays)
             if p != "Isha" and not (p == "Asr" and date.today().weekday() == 4):
-                pre_dt = dtm - timedelta(seconds=PRECLIP_SECONDS)
+                pre_dt = dtm - timedelta(seconds=PRECLIP_SECONDS+10)
                 schedule.append((f"{p}-QuranPre", pre_dt, "quran", None))
 
     # Isha - 20 minutes
